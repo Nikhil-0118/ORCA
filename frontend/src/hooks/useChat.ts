@@ -85,9 +85,13 @@ export function useChat(options: UseChatOptions = {}) {
             content: response.answer,
             timestamp: new Date().toISOString(),
             evidence: response.evidence,
+            structured_evidence: response.structured_evidence,
             risk_level: response.risk_level,
+            risk_summary: response.risk_summary,
             recommendations: response.recommendations,
             suggested_actions: response.recommendations,
+            data_limitations: response.data_limitations,
+            agents_used: response.agents_used,
           };
           setMessages((prev) => [...prev, assistantMessage]);
           setCompanionStateWithTimeout('answering', 4500);

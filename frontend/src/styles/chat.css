@@ -511,11 +511,12 @@
   background: rgba(6, 182, 212, 0.04);
 }
 
-.chat-agent-toggle svg {
+.chat-agent-toggle svg.chat-chevron-icon {
   transition: transform 0.2s ease;
+  margin-left: auto;
 }
 
-.chat-agent-toggle.expanded svg {
+.chat-agent-toggle.expanded svg.chat-chevron-icon {
   transform: rotate(180deg);
 }
 

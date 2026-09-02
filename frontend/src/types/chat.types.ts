@@ -23,14 +23,23 @@ export interface ChatRouteInfo {
   estimatedTimeMinutes: number;
 }
 
+export interface StructuredEvidenceItem {
+  source: string;
+  summary: string;
+}
+
 export interface ChatMessage {
   id?: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
   evidence?: string[];
+  structured_evidence?: StructuredEvidenceItem[];
   risk_level?: string;
+  risk_summary?: string;
   recommendations?: string[];
+  data_limitations?: string[];
+  agents_used?: string[];
   reasoning_steps?: ReasoningStep[];
   involved_agents?: (AgentType | string)[];
   suggested_actions?: string[];
@@ -47,8 +56,12 @@ export interface QueryApiRequest {
 export interface QueryApiResponse {
   answer: string;
   evidence: string[];
+  structured_evidence?: StructuredEvidenceItem[];
   risk_level: string;
+  risk_summary?: string;
   recommendations: string[];
+  data_limitations?: string[];
+  agents_used?: string[];
 }
 
 export interface ChatRequest {
