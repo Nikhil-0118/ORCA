@@ -109,52 +109,58 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages, isLo
               )}
 
               <div className={`chat-msg-bubble ${isAssistant ? 'assistant' : 'user'}`}>
-                {/* Risk Level Badge (if provided by backend) */}
-                {msg.risk_level && msg.risk_level !== 'unknown' && (
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      fontSize: 10.5,
-                      fontWeight: 700,
-                      fontFamily: 'JetBrains Mono, monospace',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      padding: '3px 9px',
-                      borderRadius: 6,
-                      marginBottom: 10,
-                      backgroundColor:
-                        msg.risk_level === 'low'
-                          ? 'rgba(16, 185, 129, 0.12)'
-                          : isModerateRisk
-                          ? 'rgba(245, 158, 11, 0.12)'
-                          : 'rgba(239, 68, 68, 0.18)',
-                      color:
-                        msg.risk_level === 'low'
-                          ? '#10b981'
-                          : isModerateRisk
-                          ? '#f59e0b'
-                          : '#ef4444',
-                      border: `1px solid ${
-                        msg.risk_level === 'low'
-                          ? 'rgba(16, 185, 129, 0.28)'
-                          : isModerateRisk
-                          ? 'rgba(245, 158, 11, 0.28)'
-                          : 'rgba(239, 68, 68, 0.35)'
-                      }`,
-                    }}
-                  >
-                    {msg.risk_level === 'low' ? (
-                      <ShieldCheck className="w-3 h-3" />
-                    ) : isModerateRisk ? (
-                      <AlertTriangle className="w-3 h-3" />
-                    ) : (
-                      <ShieldAlert className="w-3 h-3" />
-                    )}
-                    <span>{msg.risk_level} Risk Level</span>
-                  </div>
-                )}
+                {/* Risk Level Badge (only for substantive maritime queries with agents or elevated risk) */}
+                {msg.risk_level &&
+                  msg.risk_level !== 'unknown' &&
+                  ((msg.agents_used && msg.agents_used.length > 0) ||
+                    (msg.evidence && msg.evidence.length > 0) ||
+                    (msg.structured_evidence && msg.structured_evidence.length > 0) ||
+                    isModerateRisk ||
+                    isElevatedRisk) && (
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        fontFamily: 'JetBrains Mono, monospace',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        padding: '3px 9px',
+                        borderRadius: 6,
+                        marginBottom: 10,
+                        backgroundColor:
+                          msg.risk_level === 'low'
+                            ? 'rgba(16, 185, 129, 0.12)'
+                            : isModerateRisk
+                            ? 'rgba(245, 158, 11, 0.12)'
+                            : 'rgba(239, 68, 68, 0.18)',
+                        color:
+                          msg.risk_level === 'low'
+                            ? '#10b981'
+                            : isModerateRisk
+                            ? '#f59e0b'
+                            : '#ef4444',
+                        border: `1px solid ${
+                          msg.risk_level === 'low'
+                            ? 'rgba(16, 185, 129, 0.28)'
+                            : isModerateRisk
+                            ? 'rgba(245, 158, 11, 0.28)'
+                            : 'rgba(239, 68, 68, 0.35)'
+                        }`,
+                      }}
+                    >
+                      {msg.risk_level === 'low' ? (
+                        <ShieldCheck className="w-3 h-3" />
+                      ) : isModerateRisk ? (
+                        <AlertTriangle className="w-3 h-3" />
+                      ) : (
+                        <ShieldAlert className="w-3 h-3" />
+                      )}
+                      <span>{msg.risk_level} Risk Level</span>
+                    </div>
+                  )}
 
                 {/* Plain-Language Risk Summary Banner (for High/Critical warnings) */}
                 {isElevatedRisk && (
