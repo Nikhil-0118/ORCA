@@ -6,7 +6,7 @@ export type AgentType =
   | 'safety_boundary_agent';
 
 export interface ReasoningStep {
-  agent: AgentType;
+  agent: AgentType | string;
   action: string;
   rationale: string;
   data_sources_queried: string[];
@@ -28,11 +28,27 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
+  evidence?: string[];
+  risk_level?: string;
+  recommendations?: string[];
   reasoning_steps?: ReasoningStep[];
-  involved_agents?: AgentType[];
+  involved_agents?: (AgentType | string)[];
   suggested_actions?: string[];
   next_safe_window?: string;
   route_info?: ChatRouteInfo;
+}
+
+export interface QueryApiRequest {
+  query: string;
+  location?: { lat: number; lon: number };
+  session_id: string;
+}
+
+export interface QueryApiResponse {
+  answer: string;
+  evidence: string[];
+  risk_level: string;
+  recommendations: string[];
 }
 
 export interface ChatRequest {
@@ -51,4 +67,3 @@ export interface ChatResponse {
   structured_data?: Record<string, unknown>;
   route_info?: ChatRouteInfo;
 }
-

@@ -274,7 +274,7 @@ export function findDestinationByName(query: string, destinations: DestinationPo
   if (q.includes('kasimedu') || q.includes('chennai port') || q.includes('harbor')) return destinations.find((d) => d.id === 'kasimedu-harbor') || null;
   if (q.includes('mahabalipuram') || q.includes('mamallapuram') || q.includes('shore')) return destinations.find((d) => d.id === 'mahabalipuram-banks') || null;
   if (q.includes('nagapattinam') || q.includes('deep water')) return destinations.find((d) => d.id === 'nagapattinam-offshore') || null;
-  if (q.includes('pfz') || q.includes('fish') || q.includes('tuna') || q.includes('zone 42')) return destinations.find((d) => d.id === 'pfz-zone-42') || null;
+  if (q.includes('pfz zone 42') || q.includes('zone 42')) return destinations.find((d) => d.id === 'pfz-zone-42') || null;
 
   return null;
 }

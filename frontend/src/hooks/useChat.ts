@@ -1,22 +1,24 @@
 import { useState, useCallback, useRef } from 'react';
-import { ChatMessage, ChatRouteInfo, OrcaCompanionState, ReasoningStep } from '../types/chat.types';
+import { ChatMessage, OrcaCompanionState } from '../types/chat.types';
 import { DestinationPoint } from '../types/map.types';
 import { chatService } from '../services/chatService';
 import { initialChatState } from '../store/chatStore';
-import { createMarineRoute, findDestinationByName, INITIAL_DESTINATIONS } from '../store/marineMapStore';
+import { GeofenceEvaluation } from '../services/offlineSafetyService';
 
 interface UseChatOptions {
   onRouteGenerated?: (destination: DestinationPoint) => void;
+  isOffline?: boolean;
+  offlineSafetyEval?: GeofenceEvaluation;
 }
 
 export function useChat(options: UseChatOptions = {}) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialChatState.messages);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [companionState, setCompanionState] = useState<OrcaCompanionState>('idle');
-  const [activeReasoningSteps, setActiveReasoningSteps] = useState<ReasoningStep[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const resetTimerRef = useRef<number | null>(null);
+  const sessionIdRef = useRef<string>(`orca-sess-${Date.now()}`);
 
   const setCompanionStateWithTimeout = useCallback((state: OrcaCompanionState, durationMs = 4000) => {
     if (resetTimerRef.current) {
@@ -43,119 +45,84 @@ export function useChat(options: UseChatOptions = {}) {
       };
 
       setMessages((prev) => [...prev, userMessage]);
+
+      // If Offline Safety Mode is active, respond locally without making ANY network calls
+      if (options.isOffline) {
+        setIsLoading(false);
+        const evalInfo = options.offlineSafetyEval;
+        const safetySummary = evalInfo
+          ? `Status: ${evalInfo.state} · Distance: ${evalInfo.distanceToBoundaryKm.toFixed(2)} km to ${evalInfo.nearestBoundaryName}\nAlert: ${evalInfo.alertMessage}`
+          : 'Local geofence safety engine is monitoring vessel position.';
+
+        const offlineNotice: ChatMessage = {
+          id: `ast-${Date.now()}`,
+          role: 'assistant',
+          content: `🔴 [OFFLINE SAFETY MODE ACTIVE]\n\nExternal AI agents and online APIs are unavailable while disconnected.\n\n${safetySummary}\n\nLocal GPS tracking and boundary safety checks continue running 100% offline.`,
+          timestamp: new Date().toISOString(),
+        };
+
+        setMessages((prev) => [...prev, offlineNotice]);
+        setCompanionStateWithTimeout('answering', 3500);
+        return;
+      }
+
       setIsLoading(true);
       setCompanionState('thinking');
       setError(null);
 
-      // Check if this query involves a destination or route request
-      const detectedDest = findDestinationByName(text, INITIAL_DESTINATIONS);
-      let calculatedRouteInfo: ChatRouteInfo | undefined;
-
-      if (detectedDest) {
-        const route = createMarineRoute({ latitude: lat, longitude: lon }, detectedDest);
-        calculatedRouteInfo = {
-          destinationName: detectedDest.name,
-          distanceKm: route.distanceKm,
-          bearingDegrees: route.bearingDegrees,
-          safetyClearance: route.safetyClearance,
-          estimatedTimeMinutes: route.estimatedTimeMinutes,
-        };
-        if (options.onRouteGenerated) {
-          options.onRouteGenerated(detectedDest);
-        }
-      }
-
       try {
         const response = await chatService.sendQuery({
           query: text,
-          vessel_location: { latitude: lat, longitude: lon },
+          lat,
+          lon,
+          session_id: sessionIdRef.current,
         });
 
-        if (response.success && response.data) {
+        if (response && response.answer) {
           const assistantMessage: ChatMessage = {
             id: `ast-${Date.now()}`,
             role: 'assistant',
-            content: response.data.answer,
+            content: response.answer,
             timestamp: new Date().toISOString(),
-            reasoning_steps: response.data.reasoning_steps,
-            involved_agents: response.data.involved_agents,
-            suggested_actions: response.data.suggested_actions,
-            next_safe_window: response.data.next_safe_window,
-            route_info: calculatedRouteInfo || response.data.route_info,
+            evidence: response.evidence,
+            risk_level: response.risk_level,
+            recommendations: response.recommendations,
+            suggested_actions: response.recommendations,
           };
-          setActiveReasoningSteps(response.data.reasoning_steps || []);
           setMessages((prev) => [...prev, assistantMessage]);
           setCompanionStateWithTimeout('answering', 4500);
         } else {
-          throw new Error(response.message || 'Unable to generate reasoning response.');
+          throw new Error('No answer received from ORCA backend.');
         }
       } catch (err: unknown) {
-        // Resilient Marine Agent Fallback: Synthesize intelligent domain response
-        const fallbackReasoning: ReasoningStep[] = [
-          {
-            agent: 'orchestrator',
-            action: 'intent_classification_and_geocoding',
-            rationale: `Analyzed query '${text}'. Target vessel coordinates: ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E.`,
-            data_sources_queried: ['MOSDAC-Scatterometer', 'INCOIS-PFZ-Model'],
-            timestamp: new Date().toISOString(),
-          },
-          {
-            agent: 'weather_storm_agent',
-            action: 'ocean_swell_and_shear_check',
-            rationale: 'Wave heights estimated at 1.2m–1.5m with calm-to-moderate swell. Wind shear: 12 kts NE.',
-            data_sources_queried: ['ISRO-Oceansat-3'],
-            timestamp: new Date().toISOString(),
-          },
-          {
-            agent: 'safety_boundary_agent',
-            action: 'geofence_and_imbl_verification',
-            rationale: 'Vessel is 28.5 km clear of the International Maritime Boundary Line (IMBL). No active cyclonic geofence in corridor.',
-            data_sources_queried: ['Indian-EEZ-Database'],
-            timestamp: new Date().toISOString(),
-          },
-        ];
+        // Clean error message without fake PFZ or route attachments
+        const errorText =
+          err instanceof Error && err.message && !err.message.includes('Failed to fetch')
+            ? `Unable to reach ORCA backend: ${err.message}`
+            : 'Unable to reach ORCA backend. Please make sure the ORCA server is running.';
 
-        let synthesizedText = `Based on current MOSDAC satellite radar and INCOIS hydrodynamics, ocean conditions are favorable. Wave height is 1.3m with wind speed around 12 knots.`;
-
-        if (detectedDest) {
-          synthesizedText = `I have charted your navigational route to ${detectedDest.name}. Distance is ${calculatedRouteInfo?.distanceKm} km with a compass heading of ${calculatedRouteInfo?.bearingDegrees}°. Wave heights along the corridor remain under 1.4m. Next safe window is 06:00 – 11:30 AM.`;
-        } else if (text.toLowerCase().includes('fish') || text.toLowerCase().includes('pfz')) {
-          synthesizedText = `High-yield Potential Fishing Zone (PFZ #42) is active 18.4 km South-East. Chlorophyll density is 0.92 mg/m³ with thermal front at 28.4°C. Optimal safe window: 06:20 – 10:45 AM.`;
-        } else if (text.toLowerCase().includes('storm') || text.toLowerCase().includes('safe')) {
-          synthesizedText = `No severe storm alerts within 25 km of your vessel. A low-pressure swell is localized 45 km south-east. Coastal navigation remains completely SAFE for the next 12 hours.`;
-        }
-
-        const fallbackMessage: ChatMessage = {
+        const errorMessage: ChatMessage = {
           id: `ast-${Date.now()}`,
           role: 'assistant',
-          content: synthesizedText,
+          content: errorText,
           timestamp: new Date().toISOString(),
-          reasoning_steps: fallbackReasoning,
-          involved_agents: ['orchestrator', 'weather_storm_agent', 'safety_boundary_agent'],
-          suggested_actions: [
-            'Inspect animated route on Marine Map',
-            'Check PFZ zone chlorophyll density',
-            'Monitor IMBL border distance',
-          ],
-          next_safe_window: '06:00 AM – 11:30 AM (Tomorrow)',
-          route_info: calculatedRouteInfo,
         };
 
-        setActiveReasoningSteps(fallbackReasoning);
-        setMessages((prev) => [...prev, fallbackMessage]);
-        setCompanionStateWithTimeout('answering', 4500);
+        setError(errorText);
+        setMessages((prev) => [...prev, errorMessage]);
+        setCompanionStateWithTimeout('error', 4500);
       } finally {
         setIsLoading(false);
       }
     },
-    [options, setCompanionStateWithTimeout]
+    [options.isOffline, options.offlineSafetyEval, setCompanionStateWithTimeout]
   );
 
   const clearChat = useCallback(() => {
     setMessages(initialChatState.messages);
-    setActiveReasoningSteps([]);
     setError(null);
     setCompanionState('idle');
+    sessionIdRef.current = `orca-sess-${Date.now()}`;
   }, []);
 
   return {
@@ -164,10 +131,8 @@ export function useChat(options: UseChatOptions = {}) {
     companionState,
     setCompanionState,
     setCompanionStateWithTimeout,
-    activeReasoningSteps,
     error,
     sendMessage,
     clearChat,
   };
 }
-

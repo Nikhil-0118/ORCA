@@ -7,16 +7,9 @@ export interface ChatState {
   selectedLanguage: string;
 }
 
-// Initial state placeholder
+// Clean initial state — no fake welcome message
 export const initialChatState: ChatState = {
-  messages: [
-    {
-      id: 'welcome-msg',
-      role: 'assistant',
-      content: 'Namaste. I am ORCA, your marine intelligence assistant. Ask me about weather, potential fishing zones (PFZ), wave heights, or safe navigation windows.',
-      timestamp: new Date().toISOString(),
-    },
-  ],
+  messages: [],
   isLoading: false,
   activeReasoningSteps: [],
   selectedLanguage: 'en',

@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
-import { MessageSquare, RefreshCw, Radio } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import { useVoiceRecognition } from '../../hooks/useVoiceRecognition';
 import { ChatInput } from './ChatInput';
 import { ChatMessageList } from './ChatMessageList';
+import { ChatEmptyState } from './ChatEmptyState';
 import { OrcaVoiceOverlay } from '../orca/OrcaVoiceOverlay';
 import { DestinationPoint } from '../../types/map.types';
 import { OrcaCompanionState } from '../../types/chat.types';
+import { GeofenceEvaluation } from '../../services/offlineSafetyService';
 
 interface ChatContainerProps {
   currentLat?: number;
   currentLon?: number;
+  isOffline?: boolean;
+  offlineSafetyEval?: GeofenceEvaluation;
   onDestinationSelect?: (destination: DestinationPoint) => void;
   onCompanionStateChange?: (state: OrcaCompanionState) => void;
 }
@@ -18,6 +21,8 @@ interface ChatContainerProps {
 export const ChatContainer: React.FC<ChatContainerProps> = ({
   currentLat = 13.0827,
   currentLon = 80.2707,
+  isOffline = false,
+  offlineSafetyEval,
   onDestinationSelect,
   onCompanionStateChange,
 }) => {
@@ -29,13 +34,14 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     companionState,
     setCompanionState,
     sendMessage,
-    clearChat,
   } = useChat({
     onRouteGenerated: (dest) => {
       if (onDestinationSelect) {
         onDestinationSelect(dest);
       }
     },
+    isOffline,
+    offlineSafetyEval,
   });
 
   // Keep parent companion state in sync if prop provided
@@ -77,38 +83,63 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     handleCloseVoice();
   };
 
+  const handleSuggestionClick = (text: string) => {
+    sendMessage(text, currentLat, currentLon);
+  };
+
+  const hasMessages = messages.length > 0;
+
   return (
-    <div className="h-full flex flex-col relative overflow-hidden">
-      {/* Chat Header */}
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-navy-950/80 backdrop-blur-md">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-cyan-950 border border-cyan-500/50 flex items-center justify-center">
-            <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-slate-200">ORCA Marine Intelligence</h2>
-            <p className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
-              <Radio className="w-2.5 h-2.5 text-emerald-400 animate-pulse" />
-              <span>Multi-Agent Synthesizer Active</span>
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={clearChat}
-          aria-label="Clear chat"
-          title="Reset conversation"
-          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800/80 transition-colors"
+    <>
+      {/* Offline Status Warning Bar if disconnected */}
+      {isOffline && (
+        <div
+          style={{
+            maxWidth: 768,
+            margin: '0 auto 12px',
+            padding: '8px 16px',
+            borderRadius: 10,
+            background: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#f87171',
+            fontSize: 12,
+            fontFamily: 'JetBrains Mono, monospace',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
         >
-          <RefreshCw className="w-3.5 h-3.5" />
-        </button>
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: '#ef4444',
+                boxShadow: '0 0 6px #ef4444',
+              }}
+            />
+            <span>
+              <strong>OFFLINE SAFETY MODE ACTIVE</strong> — AI queries disabled · Local geofencing active
+            </span>
+          </div>
+          {offlineSafetyEval && (
+            <span style={{ fontSize: 11, color: '#fca5a5' }}>
+              {offlineSafetyEval.distanceToBoundaryKm.toFixed(1)} km · {offlineSafetyEval.state}
+            </span>
+          )}
+        </div>
+      )}
 
-      {/* Message List */}
-      <ChatMessageList messages={messages} isLoading={isLoading} />
+      {/* Empty state OR message list */}
+      {!hasMessages && !isLoading ? (
+        <ChatEmptyState onSuggestionClick={handleSuggestionClick} />
+      ) : (
+        <ChatMessageList messages={messages} isLoading={isLoading} />
+      )}
 
-      {/* Input Box */}
+      {/* Input */}
       <ChatInput
         onSend={(text) => sendMessage(text, currentLat, currentLon)}
         onVoiceClick={handleOpenVoice}
@@ -116,7 +147,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
         isLoading={isLoading}
       />
 
-      {/* Voice Recognition Modal / Overlay */}
+      {/* Voice Recognition Modal */}
       <OrcaVoiceOverlay
         isOpen={isVoiceModalOpen}
         isListening={isListening}
@@ -130,7 +161,6 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
           startListening();
         }}
       />
-    </div>
+    </>
   );
 };
-

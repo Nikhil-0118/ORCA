@@ -1,7 +1,7 @@
-import React from 'react';
-import { Bot, User, Clock, Compass, Navigation } from 'lucide-react';
+import React, { useRef, useEffect } from 'react';
+import { Anchor, Clock, Compass, Navigation, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { ChatMessage } from '../../types/chat.types';
-import { ReasoningStepViewer } from './ReasoningStepViewer';
+import { AgentActivityPanel } from './AgentActivityPanel';
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
@@ -9,113 +9,173 @@ interface ChatMessageListProps {
 }
 
 export const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages, isLoading }) => {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
+
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-      {messages.map((msg, index) => {
-        const isAssistant = msg.role === 'assistant';
-        return (
-          <div
-            key={msg.id || index}
-            className={`flex gap-3 ${isAssistant ? 'justify-start' : 'justify-end'}`}
-          >
-            {isAssistant && (
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-950 to-blue-900 border border-cyan-500/40 flex items-center justify-center shrink-0 shadow-md shadow-cyan-950/50">
-                <Bot className="w-4 h-4 text-cyan-400" />
-              </div>
-            )}
-
+    <div className="chat-messages-area">
+      <div className="chat-messages-inner">
+        {messages.map((msg, index) => {
+          const isAssistant = msg.role === 'assistant';
+          return (
             <div
-              className={`max-w-[88%] rounded-2xl p-4 text-sm ${
-                isAssistant
-                  ? 'bg-slate-900/90 text-slate-200 border border-slate-800/90 shadow-md space-y-3'
-                  : 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg shadow-cyan-950/40'
-              }`}
+              key={msg.id || index}
+              className={`chat-msg-row ${isAssistant ? 'assistant' : 'user'}`}
             >
-              <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+              {/* ORCA avatar for assistant messages */}
+              {isAssistant && (
+                <div className="chat-msg-avatar orca">
+                  <Anchor className="w-3.5 h-3.5" />
+                </div>
+              )}
 
-              {/* Destination & Route Summary Card */}
-              {msg.route_info && (
-                <div className="p-3 rounded-xl bg-navy-950/90 border border-cyan-800/60 shadow-md space-y-2 text-xs font-mono">
-                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5">
-                    <div className="flex items-center gap-1.5 text-cyan-300 font-bold">
-                      <Navigation className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>{msg.route_info.destinationName}</span>
-                    </div>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        msg.route_info.safetyClearance === 'SAFE'
-                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-700/50'
-                          : msg.route_info.safetyClearance === 'CAUTION'
-                          ? 'bg-amber-950 text-amber-300 border border-amber-700/50'
-                          : 'bg-red-950 text-red-300 border border-red-700/50'
-                      }`}
-                    >
-                      {msg.route_info.safetyClearance}
-                    </span>
+              <div className={`chat-msg-bubble ${isAssistant ? 'assistant' : 'user'}`}>
+                {/* Risk Level Badge (if provided by backend) */}
+                {msg.risk_level && msg.risk_level !== 'unknown' && (
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      fontFamily: 'JetBrains Mono, monospace',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      marginBottom: 8,
+                      backgroundColor:
+                        msg.risk_level === 'low'
+                          ? 'rgba(16, 185, 129, 0.1)'
+                          : msg.risk_level === 'moderate'
+                          ? 'rgba(245, 158, 11, 0.1)'
+                          : 'rgba(239, 68, 68, 0.15)',
+                      color:
+                        msg.risk_level === 'low'
+                          ? '#10b981'
+                          : msg.risk_level === 'moderate'
+                          ? '#f59e0b'
+                          : '#ef4444',
+                      border: `1px solid ${
+                        msg.risk_level === 'low'
+                          ? 'rgba(16, 185, 129, 0.25)'
+                          : msg.risk_level === 'moderate'
+                          ? 'rgba(245, 158, 11, 0.25)'
+                          : 'rgba(239, 68, 68, 0.3)'
+                      }`,
+                    }}
+                  >
+                    {msg.risk_level === 'low' ? (
+                      <ShieldCheck className="w-3 h-3" />
+                    ) : (
+                      <AlertTriangle className="w-3 h-3" />
+                    )}
+                    <span>{msg.risk_level} Risk Assessment</span>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-300 pt-0.5">
-                    <div>
-                      <span className="text-slate-500 block text-[9px]">Distance</span>
-                      <span className="font-bold text-slate-100">{msg.route_info.distanceKm} km</span>
+                <div className="chat-msg-content">{msg.content}</div>
+
+                {/* Route Info Card (only rendered if legitimate route info is present) */}
+                {msg.route_info && (
+                  <div className="chat-route-card">
+                    <div className="chat-route-header">
+                      <div className="chat-route-name">
+                        <Navigation className="w-3.5 h-3.5" />
+                        <span>{msg.route_info.destinationName}</span>
+                      </div>
+                      <span
+                        className={`chat-route-badge ${
+                          msg.route_info.safetyClearance === 'SAFE'
+                            ? 'safe'
+                            : msg.route_info.safetyClearance === 'CAUTION'
+                            ? 'caution'
+                            : 'restricted'
+                        }`}
+                      >
+                        {msg.route_info.safetyClearance}
+                      </span>
                     </div>
-                    <div>
-                      <span className="text-slate-500 block text-[9px]">Bearing</span>
-                      <span className="font-bold text-cyan-300">{msg.route_info.bearingDegrees}°</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 block text-[9px]">Est. Time</span>
-                      <span className="font-bold text-slate-100">{msg.route_info.estimatedTimeMinutes} min</span>
+
+                    <div className="chat-route-stats">
+                      <div>
+                        <div className="chat-route-stat-label">Distance</div>
+                        <div className="chat-route-stat-value">{msg.route_info.distanceKm} km</div>
+                      </div>
+                      <div>
+                        <div className="chat-route-stat-label">Bearing</div>
+                        <div className="chat-route-stat-value" style={{ color: '#06b6d4' }}>
+                          {msg.route_info.bearingDegrees}°
+                        </div>
+                      </div>
+                      <div>
+                        <div className="chat-route-stat-label">Est. Time</div>
+                        <div className="chat-route-stat-value">
+                          {msg.route_info.estimatedTimeMinutes} min
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Show Reasoning trace for multi-agent synthesis */}
-              {msg.reasoning_steps && msg.reasoning_steps.length > 0 && (
-                <ReasoningStepViewer steps={msg.reasoning_steps} />
-              )}
+                {/* Agent Activity / Evidence Sources (expandable) */}
+                {((msg.reasoning_steps && msg.reasoning_steps.length > 0) ||
+                  (msg.evidence && msg.evidence.length > 0)) && (
+                  <AgentActivityPanel
+                    steps={msg.reasoning_steps}
+                    evidence={msg.evidence}
+                    riskLevel={msg.risk_level}
+                  />
+                )}
 
-              {/* Suggested Actions if present */}
-              {msg.suggested_actions && msg.suggested_actions.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {msg.suggested_actions.map((action, aIdx) => (
-                    <span
-                      key={aIdx}
-                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-950/80 border border-slate-800 text-[10px] font-mono text-cyan-300"
-                    >
-                      <Compass className="w-2.5 h-2.5 text-cyan-400" />
-                      {action}
-                    </span>
-                  ))}
-                </div>
-              )}
+                {/* Suggested Actions / Recommendations */}
+                {msg.suggested_actions && msg.suggested_actions.length > 0 && (
+                  <div className="chat-actions">
+                    {msg.suggested_actions.map((action, aIdx) => (
+                      <span key={aIdx} className="chat-action-chip">
+                        <Compass className="w-3 h-3" style={{ color: '#06b6d4' }} />
+                        {action}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
-              {/* Next Safe Window Badge if present */}
-              {msg.next_safe_window && (
-                <div className="flex items-center gap-2 text-xs bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 px-3 py-1.5 rounded-xl font-mono">
-                  <Clock className="w-3.5 h-3.5 shrink-0" />
-                  <span>Next Safe Window: {msg.next_safe_window}</span>
-                </div>
-              )}
-            </div>
-
-            {!isAssistant && (
-              <div className="w-8 h-8 rounded-xl bg-blue-900 border border-blue-700 flex items-center justify-center shrink-0 shadow-md">
-                <User className="w-4 h-4 text-blue-200" />
+                {/* Next Safe Window */}
+                {msg.next_safe_window && (
+                  <div className="chat-safe-window">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Next Safe Window: {msg.next_safe_window}</span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        );
-      })}
+            </div>
+          );
+        })}
 
-      {isLoading && (
-        <div className="flex items-center gap-3 text-cyan-400 text-xs font-mono p-3 rounded-2xl bg-cyan-950/30 border border-cyan-800/30 animate-pulse">
-          <Bot className="w-4 h-4 animate-spin" />
-          <span>Specialist agents synthesizing MOSDAC, INCOIS & NavIC telemetry...</span>
-        </div>
-      )}
+        {/* Loading indicator */}
+        {isLoading && (
+          <div className="chat-msg-row assistant">
+            <div className="chat-msg-avatar orca">
+              <Anchor className="w-3.5 h-3.5" />
+            </div>
+            <div className="chat-loading">
+              <div className="chat-loading-dots">
+                <div className="chat-loading-dot" />
+                <div className="chat-loading-dot" />
+                <div className="chat-loading-dot" />
+              </div>
+              <span className="chat-loading-text">ORCA multi-agent graph reasoning...</span>
+            </div>
+          </div>
+        )}
+
+        <div ref={bottomRef} />
+      </div>
     </div>
   );
 };
-
