@@ -28,16 +28,44 @@ export interface StructuredEvidenceItem {
   summary: string;
 }
 
+export interface DecisionInfo {
+  label: string;
+  summary?: string;
+  confidence?: 'high' | 'moderate' | 'low' | string;
+}
+
+export interface BestTimeInfo {
+  available: boolean;
+  window?: string | null;
+  basis?: string | null;
+}
+
+export interface LocationContext {
+  latitude: number | null;
+  longitude: number | null;
+  source: 'browser_gps' | 'user_override' | 'map_selection' | 'demo' | 'unavailable';
+  accuracy_m?: number | null;
+  timestamp?: string | null;
+  is_demo: boolean;
+  label?: string | null;
+}
+
 export interface ChatMessage {
   id?: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
-  evidence?: string[];
-  structured_evidence?: StructuredEvidenceItem[];
+  location?: LocationContext;
+  mode?: 'conversation' | 'utility' | 'marine' | 'safety';
+  decision?: DecisionInfo;
   risk_level?: string;
   risk_summary?: string;
+  key_conditions?: string[];
   recommendations?: string[];
+  best_time?: BestTimeInfo;
+  reasoning_summary?: string;
+  evidence?: string[];
+  structured_evidence?: StructuredEvidenceItem[];
   data_limitations?: string[];
   agents_used?: string[];
   reasoning_steps?: ReasoningStep[];
@@ -49,17 +77,25 @@ export interface ChatMessage {
 
 export interface QueryApiRequest {
   query: string;
-  location?: { lat: number; lon: number };
+  location?: LocationContext | { lat: number; lon: number } | null;
   session_id: string;
+  conversation_history?: Array<{ role: string; content: string }>;
+  is_demo_mode?: boolean;
 }
 
 export interface QueryApiResponse {
+  mode?: 'conversation' | 'utility' | 'marine' | 'safety';
   answer: string;
-  evidence: string[];
-  structured_evidence?: StructuredEvidenceItem[];
+  location?: LocationContext;
+  decision?: DecisionInfo;
   risk_level: string;
   risk_summary?: string;
+  key_conditions?: string[];
   recommendations: string[];
+  best_time?: BestTimeInfo;
+  reasoning_summary?: string;
+  evidence: string[];
+  structured_evidence?: StructuredEvidenceItem[];
   data_limitations?: string[];
   agents_used?: string[];
 }

@@ -5,7 +5,7 @@ Fetches Sea Surface Temperature (SST), Chlorophyll concentrations, and ocean cur
 from datetime import datetime
 from typing import Any, Dict, Optional
 from app.connectors.base_connector import BaseConnector
-from app.core.config import settings
+from app.config import settings
 from app.core.logger import logger
 from app.schemas.common import Coordinates
 from app.schemas.marine_data import ChlorophyllData, SSTData

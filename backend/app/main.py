@@ -1,36 +1,21 @@
 """
 FastAPI Application Entry Point.
-Configures CORS middleware, lifespan events (DB & Scheduler), and mounts API routers.
+Configures CORS middleware, lifespan events, and mounts API routers.
 """
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.router import api_router
-from app.core.config import settings
-from app.core.database import close_db, init_db
-from app.core.logger import logger, setup_logging
-from app.jobs.scheduler import start_background_jobs, stop_background_jobs
+from app.api.endpoints import router as core_router
+from app.config import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application startup and shutdown event lifecycle handler."""
-    setup_logging()
-    logger.info("app_starting", project_name=settings.PROJECT_NAME, environment=settings.ENVIRONMENT)
-
-    # Initialize database connection pools
-    await init_db()
-
-    # Start background alert poller & scheduler
-    start_background_jobs()
-
+    # Future: init DB pools, start background scheduler, setup logging
     yield
-
-    # Teardown background workers and db pools
-    stop_background_jobs()
-    await close_db()
-    logger.info("app_shutdown_complete")
+    # Future: teardown DB pools, stop scheduler
 
 
 def create_app() -> FastAPI:
@@ -42,18 +27,25 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS configuration
-    if settings.BACKEND_CORS_ORIGINS:
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
+    # CORS configuration — allow all dev origins and network addresses
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"^https?://.*$",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-    # Mount API routers
-    app.include_router(api_router)
+    # Mount top-level /api endpoints (health, query, safety-check)
+    app.include_router(core_router)
+
+    # Mount existing v1 sub-routers only if all optional deps are available.
+    # This prevents import errors when structlog/shapely/apscheduler are not yet installed.
+    try:
+        from app.api.router import api_router
+        app.include_router(api_router)
+    except ImportError:
+        pass
 
     return app
 

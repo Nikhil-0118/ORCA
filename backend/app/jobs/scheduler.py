@@ -5,7 +5,7 @@ Manages cron-like execution of data pollers without blocking FastAPI async event
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.connectors.incois_client import IncoisClient
 from app.connectors.mosdac_client import MosdacClient
-from app.core.config import settings
+from app.config import settings
 from app.core.logger import logger
 from app.jobs.alert_poller import MarineAlertPoller
 from app.services.alerting_service import AlertingService

@@ -4,7 +4,7 @@ Compresses marine advisories and distress updates into GSM-standard 160-characte
 for transmission across weak-signal 2G/EDGE cellular networks.
 """
 from typing import Optional
-from app.core.config import settings
+from app.config import settings
 from app.core.logger import logger
 from app.schemas.alerts import AlertItem
 

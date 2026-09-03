@@ -9,6 +9,8 @@ shapely>=2.0.3,<3.0.0
 geojson-pydantic>=1.0.2,<2.0.0
 python-dotenv>=1.0.1,<2.0.0
 structlog>=24.1.0,<25.0.0
+langgraph>=1.2.0,<2.0.0
+langchain-core>=1.6.0,<2.0.0
 
 # Testing & Linting
 pytest>=8.0.0,<9.0.0

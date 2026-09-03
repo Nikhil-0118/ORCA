@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { ChatMessage, OrcaCompanionState } from '../types/chat.types';
+import { ChatMessage, LocationContext, OrcaCompanionState } from '../types/chat.types';
 import { DestinationPoint } from '../types/map.types';
 import { chatService } from '../services/chatService';
 import { initialChatState } from '../store/chatStore';
@@ -9,6 +9,7 @@ interface UseChatOptions {
   onRouteGenerated?: (destination: DestinationPoint) => void;
   isOffline?: boolean;
   offlineSafetyEval?: GeofenceEvaluation;
+  locationContext?: LocationContext | null;
 }
 
 export function useChat(options: UseChatOptions = {}) {
@@ -34,13 +35,16 @@ export function useChat(options: UseChatOptions = {}) {
   }, []);
 
   const sendMessage = useCallback(
-    async (text: string, lat = 13.0827, lon = 80.2707) => {
+    async (text: string, overrideLocation?: LocationContext | null) => {
       if (!text.trim()) return;
+
+      const locToSend = overrideLocation !== undefined ? overrideLocation : options.locationContext;
 
       const userMessage: ChatMessage = {
         id: `usr-${Date.now()}`,
         role: 'user',
         content: text,
+        location: locToSend || undefined,
         timestamp: new Date().toISOString(),
       };
 
@@ -59,6 +63,29 @@ export function useChat(options: UseChatOptions = {}) {
           role: 'assistant',
           content: `🔴 [OFFLINE SAFETY MODE ACTIVE]\n\nExternal AI agents and online APIs are unavailable while disconnected.\n\n${safetySummary}\n\nLocal GPS tracking and boundary safety checks continue running 100% offline.`,
           timestamp: new Date().toISOString(),
+          decision: {
+            label: evalInfo?.state === 'BREACH' ? 'Avoid' : evalInfo?.state === 'WARNING' ? 'Operational caution' : 'Clear',
+            summary: evalInfo?.alertMessage || 'Offline safety monitoring active.',
+            confidence: 'high',
+          },
+          risk_level: evalInfo?.state === 'BREACH' ? 'critical' : evalInfo?.state === 'WARNING' ? 'high' : 'low',
+          risk_summary: evalInfo?.alertMessage || 'Local geofence monitoring.',
+          key_conditions: [
+            `Current distance: ${evalInfo?.distanceToBoundaryKm.toFixed(2) || 'N/A'} km to boundary`,
+            `Status: ${evalInfo?.state || 'NORMAL'}`,
+          ],
+          recommendations: evalInfo?.state === 'BREACH'
+            ? ['TURN BACK IMMEDIATELY. You have breached maritime demarcation limits.']
+            : ['Maintain continuous watch and follow standard safety practices.'],
+          best_time: {
+            available: false,
+            window: null,
+            basis: 'Offline Mode: live forecasts unavailable while disconnected.',
+          },
+          reasoning_summary: 'Why: Offline safety engine evaluated boundary proximity locally without network connectivity.',
+          evidence: ['Local geofence dataset (offline)'],
+          data_limitations: ['Operating in 100% offline safety mode. External AI agents and online APIs disabled.'],
+          agents_used: ['LocalGeofenceEngine'],
         };
 
         setMessages((prev) => [...prev, offlineNotice]);
@@ -71,11 +98,17 @@ export function useChat(options: UseChatOptions = {}) {
       setError(null);
 
       try {
+        // Format recent messages as conversation history for contextual follow-up
+        const conversation_history = messages.slice(-6).map((m) => ({
+          role: m.role,
+          content: m.content,
+        }));
+
         const response = await chatService.sendQuery({
           query: text,
-          lat,
-          lon,
+          location: locToSend,
           session_id: sessionIdRef.current,
+          conversation_history,
         });
 
         if (response && response.answer) {
@@ -83,13 +116,19 @@ export function useChat(options: UseChatOptions = {}) {
             id: `ast-${Date.now()}`,
             role: 'assistant',
             content: response.answer,
+            location: response.location,
+            mode: response.mode || 'marine',
             timestamp: new Date().toISOString(),
-            evidence: response.evidence,
-            structured_evidence: response.structured_evidence,
+            decision: response.decision,
             risk_level: response.risk_level,
             risk_summary: response.risk_summary,
+            key_conditions: response.key_conditions,
             recommendations: response.recommendations,
             suggested_actions: response.recommendations,
+            best_time: response.best_time,
+            reasoning_summary: response.reasoning_summary,
+            evidence: response.evidence,
+            structured_evidence: response.structured_evidence,
             data_limitations: response.data_limitations,
             agents_used: response.agents_used,
           };

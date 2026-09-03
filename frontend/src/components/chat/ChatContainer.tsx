@@ -6,12 +6,11 @@ import { ChatMessageList } from './ChatMessageList';
 import { ChatEmptyState } from './ChatEmptyState';
 import { OrcaVoiceOverlay } from '../orca/OrcaVoiceOverlay';
 import { DestinationPoint } from '../../types/map.types';
-import { OrcaCompanionState } from '../../types/chat.types';
+import { LocationContext, OrcaCompanionState } from '../../types/chat.types';
 import { GeofenceEvaluation } from '../../services/offlineSafetyService';
 
 interface ChatContainerProps {
-  currentLat?: number;
-  currentLon?: number;
+  locationContext?: LocationContext;
   isOffline?: boolean;
   offlineSafetyEval?: GeofenceEvaluation;
   onDestinationSelect?: (destination: DestinationPoint) => void;
@@ -19,8 +18,7 @@ interface ChatContainerProps {
 }
 
 export const ChatContainer: React.FC<ChatContainerProps> = ({
-  currentLat = 13.0827,
-  currentLon = 80.2707,
+  locationContext,
   isOffline = false,
   offlineSafetyEval,
   onDestinationSelect,
@@ -42,6 +40,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     },
     isOffline,
     offlineSafetyEval,
+    locationContext,
   });
 
   // Keep parent companion state in sync if prop provided
@@ -79,12 +78,12 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   };
 
   const handleVoiceSend = (spokenText: string) => {
-    sendMessage(spokenText, currentLat, currentLon);
+    sendMessage(spokenText);
     handleCloseVoice();
   };
 
   const handleSuggestionClick = (text: string) => {
-    sendMessage(text, currentLat, currentLon);
+    sendMessage(text);
   };
 
   const hasMessages = messages.length > 0;
@@ -141,7 +140,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
 
       {/* Input */}
       <ChatInput
-        onSend={(text) => sendMessage(text, currentLat, currentLon)}
+        onSend={(text) => sendMessage(text)}
         onVoiceClick={handleOpenVoice}
         isVoiceActive={isListening}
         isLoading={isLoading}

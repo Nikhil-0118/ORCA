@@ -4,7 +4,7 @@ Transmits emergency distress signals to ISRO satellite hub and receives broadcas
 """
 from typing import Any, Dict
 from app.connectors.base_connector import BaseConnector
-from app.core.config import settings
+from app.config import settings
 from app.core.logger import logger
 from app.schemas.sos import SOSTriggerRequest
 

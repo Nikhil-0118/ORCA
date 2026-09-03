@@ -7,7 +7,7 @@ from datetime import datetime
 import uuid
 from typing import Optional
 from app.connectors.navic_dat_sg_client import NavicDatSgClient
-from app.core.config import settings
+from app.config import settings
 from app.core.logger import logger
 from app.schemas.sos import SOSDispatchResponse, SOSTriggerRequest
 from app.services.sms_fallback_service import SmsFallbackService

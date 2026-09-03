@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatContainer } from './ChatContainer';
+import { LocationStatusBadge } from './LocationStatusBadge';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { useOfflineSafety } from '../../hooks/useOfflineSafety';
 import { OfflineSafetyPanel } from '../safety/OfflineSafetyPanel';
@@ -19,14 +20,20 @@ interface ChatWorkspaceProps {
 
 export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({ onBackToLanding }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { location } = useGeolocation();
+  const {
+    locationContext,
+    isLocating,
+    requestLiveGps,
+    setDemoLocation,
+    clearDemoLocation,
+  } = useGeolocation();
   const [chatKey, setChatKey] = useState(0);
   const [isSafetyModalOpen, setIsSafetyModalOpen] = useState(false);
 
   // Initialize offline safety engine & simulator
   const safetyHook = useOfflineSafety(
-    location?.coordinates.latitude || 9.45,
-    location?.coordinates.longitude || 79.2
+    locationContext.latitude || 9.45,
+    locationContext.longitude || 79.2
   );
 
   const handleNewChat = () => {
@@ -98,6 +105,15 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({ onBackToLanding })
                 </>
               )}
             </button>
+
+            {/* Canonical Location Status Badge (Live GPS vs Demo Mode vs Unavailable) */}
+            <LocationStatusBadge
+              locationContext={locationContext}
+              isLocating={isLocating}
+              onRequestGps={requestLiveGps}
+              onSetDemo={setDemoLocation}
+              onClearDemo={clearDemoLocation}
+            />
           </div>
 
           <div className="chat-topbar-right">
@@ -141,8 +157,7 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({ onBackToLanding })
         {/* Chat Content (Empty State / Messages / Input) */}
         <ChatContainer
           key={chatKey}
-          currentLat={safetyHook.latitude}
-          currentLon={safetyHook.longitude}
+          locationContext={locationContext}
           isOffline={isOffline}
           offlineSafetyEval={evaluation}
         />

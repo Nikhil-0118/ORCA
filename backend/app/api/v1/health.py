@@ -3,7 +3,7 @@ Health check and readiness endpoints for container orchestration / uptime monito
 """
 from typing import Dict
 from fastapi import APIRouter, status
-from app.core.config import settings
+from app.config import settings
 
 router = APIRouter()
 

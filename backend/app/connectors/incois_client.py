@@ -5,7 +5,7 @@ Fetches Potential Fishing Zone (PFZ) advisories, wave heights, swell, and cyclon
 from datetime import datetime, timedelta
 from typing import List
 from app.connectors.base_connector import BaseConnector
-from app.core.config import settings
+from app.config import settings
 from app.core.logger import logger
 from app.schemas.common import Coordinates, GeoJsonPolygon
 from app.schemas.marine_data import PFZData, WeatherData
